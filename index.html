@@ -1,100 +1,148 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Consulta de Postulaciones</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 40px;
-    }
-    input, button {
-      margin: 8px 0;
-      padding: 8px;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-top: 20px;
-    }
-    table, th, td {
-      border: 1px solid #ccc;
-    }
-    th, td {
-      padding: 10px;
-      text-align: left;
-    }
-    th {
-      background-color: #f2f2f2;
-      width: 200px;
-    }
-    #resultado {
-      margin-top: 20px;
-      border-radius: 8px;
-      background: #f9f9f9;
-      padding: 15px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Formulario de Consulta</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body {
+            background-color: #f4f6f9;
+        }
+        .form-container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 25px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        #resultados {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: auto;
+        }
+        table {
+            background: white;
+        }
+    </style>
 </head>
 <body>
-  <h2>Consulta de Postulaciones desde Excel</h2>
-  
-  <label>📂 Cargar Excel:</label>
-  <input type="file" id="inputExcel" accept=".xlsx, .xls">
-  <br><br>
-  
-  <label>🔍 Buscar por Cédula:</label>
-  <input type="text" id="busqueda">
-  <button onclick="buscarDato()">Buscar</button>
+    <div class="form-container">
+        <h3 class="mb-4">🔍 Consulta de Postulaciones</h3>
+        <div class="mb-3">
+            <label for="fileInput" class="form-label">Cargar archivo Excel</label>
+            <input type="file" id="fileInput" class="form-control" accept=".xlsx, .xls">
+        </div>
+        <div class="mb-3">
+            <label for="cedulaInput" class="form-label">Ingrese Cédula</label>
+            <input type="text" id="cedulaInput" class="form-control">
+        </div>
+        <button class="btn btn-primary" onclick="buscarCedula()">Buscar</button>
 
-  <div id="resultado">Esperando búsqueda...</div>
+        <div id="resultados"></div>
+        <div id="exportButtons" class="mt-3" style="display:none;">
+            <button class="btn btn-success me-2" onclick="exportarExcel()">📂 Exportar a Excel</button>
+            <button class="btn btn-danger" onclick="exportarPDF()">📄 Exportar a PDF</button>
+        </div>
+    </div>
 
-  <script>
-    let workbook;
+    <script>
+        let datosExcel = [];
+        let resultadosActuales = [];
 
-    // Leer archivo Excel
-    document.getElementById('inputExcel').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const data = new Uint8Array(evt.target.result);
-        workbook = XLSX.read(data, { type: 'array' });
-        alert("✅ Archivo cargado correctamente");
-      };
-      reader.readAsArrayBuffer(file);
-    });
+        document.getElementById("fileInput").addEventListener("change", function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
 
-    // Buscar por Cédula
-    function buscarDato() {
-      if (!workbook) {
-        alert("⚠️ Primero carga un archivo Excel");
-        return;
-      }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: "array" });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                datosExcel = XLSX.utils.sheet_to_json(sheet);
+                alert("✅ Archivo cargado correctamente.");
+            };
+            reader.readAsArrayBuffer(file);
+        });
 
-      const hoja = workbook.Sheets[workbook.SheetNames[0]];
-      const datos = XLSX.utils.sheet_to_json(hoja);
+        function buscarCedula() {
+            const cedula = document.getElementById("cedulaInput").value.trim();
+            const resultadosDiv = document.getElementById("resultados");
+            resultadosDiv.innerHTML = "";
+            resultadosActuales = [];
 
-      const cedulaBuscada = document.getElementById("busqueda").value;
-      const resultado = datos.find(row => row.Cedula == cedulaBuscada);
+            if (!cedula) {
+                resultadosDiv.innerHTML = "<p class='text-danger'>⚠️ Por favor ingrese una cédula.</p>";
+                return;
+            }
 
-      if (resultado) {
-        document.getElementById("resultado").innerHTML = `
-          <table>
-            <tr><th>Cedula</th><td>${resultado["Cedula"]}</td></tr>
-            <tr><th>Nombres y Apellidos</th><td>${resultado["Nombres y Apellidos"]}</td></tr>
-            <tr><th>Postulacion</th><td>${resultado["Postulacion"]}</td></tr>
-            <tr><th>Proyecto</th><td>${resultado["Proyecto"]}</td></tr>
-            <tr><th>Estado de la Postulacion</th><td>${resultado["Estado de la Postulacion"]}</td></tr>
-            <tr><th>Otorgado</th><td>${resultado["Otorgado"]}</td></tr>
-            <tr><th>Resolucion</th><td>${resultado["Resolucion"]}</td></tr>
-            <tr><th>Observaciones</th><td>${resultado["Observaciones"]}</td></tr>
-          </table>`;
-      } else {
-        document.getElementById("resultado").innerHTML = 
-          "<p style='color:red; font-weight:bold;'>❌ No se encontró la cédula</p>";
-      }
-    }
-  </script>
+            if (!datosExcel.length) {
+                resultadosDiv.innerHTML = "<p class='text-danger'>⚠️ Primero cargue un archivo Excel.</p>";
+                return;
+            }
+
+            const columnas = Object.keys(datosExcel[0]);
+            const columnaCedula = columnas.find(c => c.toLowerCase().includes("cedul"));
+
+            if (!columnaCedula) {
+                resultadosDiv.innerHTML = "<p class='text-danger'>❌ No se encontró ninguna columna de Cédula en el archivo.</p>";
+                return;
+            }
+
+            const encontrados = datosExcel.filter(fila => fila[columnaCedula] == cedula);
+
+            if (encontrados.length > 0) {
+                resultadosActuales = encontrados;
+
+                let html = `<p><strong>Se encontraron ${encontrados.length} registros</strong></p>`;
+                html += `<table class="table table-bordered"><thead><tr>`;
+                Object.keys(encontrados[0]).forEach(col => {
+                    html += `<th>${col}</th>`;
+                });
+                html += `</tr></thead><tbody>`;
+
+                encontrados.forEach(fila => {
+                    html += `<tr>`;
+                    Object.values(fila).forEach(valor => {
+                        html += `<td>${valor}</td>`;
+                    });
+                    html += `</tr>`;
+                });
+
+                html += `</tbody></table>`;
+                resultadosDiv.innerHTML = html;
+
+                document.getElementById("exportButtons").style.display = "block";
+            } else {
+                resultadosDiv.innerHTML = "<p class='text-danger'>❌ No se encontraron registros para esta cédula.</p>";
+                document.getElementById("exportButtons").style.display = "none";
+            }
+        }
+
+        function exportarExcel() {
+            if (!resultadosActuales.length) return;
+            const ws = XLSX.utils.json_to_sheet(resultadosActuales);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Resultados");
+            XLSX.writeFile(wb, "consulta_resultados.xlsx");
+        }
+
+        function exportarPDF() {
+            if (!resultadosActuales.length) return;
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("Resultados de la Consulta", 14, 15);
+            doc.autoTable({
+                startY: 25,
+                head: [Object.keys(resultadosActuales[0])],
+                body: resultadosActuales.map(fila => Object.values(fila))
+            });
+            doc.save("consulta_resultados.pdf");
+        }
+    </script>
 </body>
 </html>
