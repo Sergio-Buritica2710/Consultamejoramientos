@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Consulta de Postulaciones</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+    }
+    input, button {
+      margin: 8px 0;
+      padding: 8px;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
+    }
+    table, th, td {
+      border: 1px solid #ccc;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+      width: 200px;
+    }
+    #resultado {
+      margin-top: 20px;
+      border-radius: 8px;
+      background: #f9f9f9;
+      padding: 15px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Consulta de Postulaciones desde Excel</h2>
+  
+  <label>📂 Cargar Excel:</label>
+  <input type="file" id="inputExcel" accept=".xlsx, .xls">
+  <br><br>
+  
+  <label>🔍 Buscar por Cédula:</label>
+  <input type="text" id="busqueda">
+  <button onclick="buscarDato()">Buscar</button>
+
+  <div id="resultado">Esperando búsqueda...</div>
+
+  <script>
+    let workbook;
+
+    // Leer archivo Excel
+    document.getElementById('inputExcel').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const data = new Uint8Array(evt.target.result);
+        workbook = XLSX.read(data, { type: 'array' });
+        alert("✅ Archivo cargado correctamente");
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    // Buscar por Cédula
+    function buscarDato() {
+      if (!workbook) {
+        alert("⚠️ Primero carga un archivo Excel");
+        return;
+      }
+
+      const hoja = workbook.Sheets[workbook.SheetNames[0]];
+      const datos = XLSX.utils.sheet_to_json(hoja);
+
+      const cedulaBuscada = document.getElementById("busqueda").value;
+      const resultado = datos.find(row => row.Cedula == cedulaBuscada);
+
+      if (resultado) {
+        document.getElementById("resultado").innerHTML = `
+          <table>
+            <tr><th>Cedula</th><td>${resultado["Cedula"]}</td></tr>
+            <tr><th>Nombres y Apellidos</th><td>${resultado["Nombres y Apellidos"]}</td></tr>
+            <tr><th>Postulacion</th><td>${resultado["Postulacion"]}</td></tr>
+            <tr><th>Proyecto</th><td>${resultado["Proyecto"]}</td></tr>
+            <tr><th>Estado de la Postulacion</th><td>${resultado["Estado de la Postulacion"]}</td></tr>
+            <tr><th>Otorgado</th><td>${resultado["Otorgado"]}</td></tr>
+            <tr><th>Resolucion</th><td>${resultado["Resolucion"]}</td></tr>
+            <tr><th>Observaciones</th><td>${resultado["Observaciones"]}</td></tr>
+          </table>`;
+      } else {
+        document.getElementById("resultado").innerHTML = 
+          "<p style='color:red; font-weight:bold;'>❌ No se encontró la cédula</p>";
+      }
+    }
+  </script>
+</body>
+</html>
